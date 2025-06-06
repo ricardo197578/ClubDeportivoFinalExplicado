@@ -12,7 +12,6 @@ namespace ClubManagement
 
     public partial class PagoCuotaSocioForm : Form
     {
-       
         private readonly DatabaseHelper _dbHelper;
 
         private ComboBox cmbSocios;
@@ -24,14 +23,11 @@ namespace ClubManagement
         private Label lblMonto;
         private GroupBox gbMetodo;
 
-       
-
         public PagoCuotaSocioForm(DatabaseHelper dbHelper)
         {
             _dbHelper = dbHelper;
             InitializeComponent();
             CargarSocios();
-            
         }
 
         private void InitializeComponent()
@@ -121,17 +117,19 @@ namespace ClubManagement
             try
             {
                 cmbSocios.Items.Clear();
-                //using (var dbHelper = new DatabaseHelper())
                 using (var conn = _dbHelper.GetConnection())
                 {
-                    var cmd = new SQLiteCommand("SELECT NroSocio, Nombre || ' ' || Apellido AS NombreCompleto FROM Socios WHERE EstadoActivo = 1", conn);
+                    var cmd = new SQLiteCommand(
+                        "SELECT NroSocio, Nombre || ' ' || Apellido AS NombreCompleto, FechaVencimientoCuota " +
+                        "FROM Socios WHERE EstadoActivo = 1", conn);
                     var reader = cmd.ExecuteReader();
 
                     while (reader.Read())
                     {
+                        DateTime fechaVenc = Convert.ToDateTime(reader["FechaVencimientoCuota"]);
                         cmbSocios.Items.Add(new ComboBoxItem
                         {
-                            Text = reader["NombreCompleto"].ToString(),
+                            Text = string.Format("{0} (Vence: {1})", reader["NombreCompleto"], fechaVenc.ToString("dd/MM/yyyy")),
                             Value = Convert.ToInt32(reader["NroSocio"])
                         });
                     }
@@ -142,7 +140,7 @@ namespace ClubManagement
             }
             catch (Exception ex)
             {
-                MessageBox.Show(string.Format("Error al cargar socios:{0}", ex.Message));
+                MessageBox.Show(string.Format("Error al cargar socios: {0}", ex.Message));
             }
         }
 
@@ -158,9 +156,9 @@ namespace ClubManagement
             int nroSocio = selected.Value;
 
             decimal monto;
-            if (!decimal.TryParse(txtMonto.Text, out monto))
+            if (!decimal.TryParse(txtMonto.Text, out monto) || monto <= 0)
             {
-                MessageBox.Show("Monto inválido");
+                MessageBox.Show("Ingrese un monto válido");
                 return;
             }
 
@@ -168,32 +166,50 @@ namespace ClubManagement
 
             try
             {
-                //using (var dbHelper = new DatabaseHelper())
                 using (var conn = _dbHelper.GetConnection())
                 using (var transaction = conn.BeginTransaction())
                 {
                     try
                     {
-                        var cmd = new SQLiteCommand(
+                        // 1. Obtener la fecha de vencimiento actual del socio
+                        DateTime fechaVencimientoActual;
+                        using (var cmd = new SQLiteCommand(
+                            "SELECT FechaVencimientoCuota FROM Socios WHERE NroSocio = @nroSocio",
+                            conn))
+                        {
+                            cmd.Parameters.AddWithValue("@nroSocio", nroSocio);
+                            fechaVencimientoActual = Convert.ToDateTime(cmd.ExecuteScalar());
+                        }
+
+                        // 2. Calcular NUEVA fecha de vencimiento (1 mes después de la fecha actual de vencimiento)
+                        DateTime nuevaFechaVencimiento = fechaVencimientoActual.AddMonths(1);
+
+                        // 3. Registrar el pago en la tabla Cuotas
+                        using (var cmd = new SQLiteCommand(
                             "INSERT INTO Cuotas (NroSocio, Monto, FechaPago, FechaVencimiento, MetodoPago, Pagada) " +
-                            "VALUES (@nroSocio, @monto, @fechaPago, @fechaVen, @metodo, 1)", conn);
+                            "VALUES (@nroSocio, @monto, @fechaPago, @fechaVen, @metodo, 1)", conn))
+                        {
+                            cmd.Parameters.AddWithValue("@nroSocio", nroSocio);
+                            cmd.Parameters.AddWithValue("@monto", monto);
+                            cmd.Parameters.AddWithValue("@fechaPago", DateTime.Now);
+                            cmd.Parameters.AddWithValue("@fechaVen", nuevaFechaVencimiento);
+                            cmd.Parameters.AddWithValue("@metodo", metodoPago.ToString());
+                            cmd.ExecuteNonQuery();
+                        }
 
-                        DateTime fechaVencimiento = DateTime.Now.AddMonths(1);
-
-                        cmd.Parameters.AddWithValue("@nroSocio", nroSocio);
-                        cmd.Parameters.AddWithValue("@monto", monto);
-                        cmd.Parameters.AddWithValue("@fechaPago", DateTime.Now);
-                        cmd.Parameters.AddWithValue("@fechaVen", fechaVencimiento);
-                        cmd.Parameters.AddWithValue("@metodo", metodoPago.ToString());
-                        cmd.ExecuteNonQuery();
-
-                        cmd = new SQLiteCommand("UPDATE Socios SET FechaVencimientoCuota = @fechaVen WHERE NroSocio = @nroSocio", conn);
-                        cmd.Parameters.AddWithValue("@fechaVen", fechaVencimiento);
-                        cmd.Parameters.AddWithValue("@nroSocio", nroSocio);
-                        cmd.ExecuteNonQuery();
+                        // 4. Actualizar la fecha de vencimiento en la tabla Socios
+                        using (var cmd = new SQLiteCommand(
+                            "UPDATE Socios SET FechaVencimientoCuota = @nuevaFecha WHERE NroSocio = @nroSocio",
+                            conn))
+                        {
+                            cmd.Parameters.AddWithValue("@nuevaFecha", nuevaFechaVencimiento);
+                            cmd.Parameters.AddWithValue("@nroSocio", nroSocio);
+                            cmd.ExecuteNonQuery();
+                        }
 
                         transaction.Commit();
-                        MessageBox.Show("Pago registrado exitosamente");
+                        MessageBox.Show("Pago registrado exitosamente.\n" +
+                                       "Nueva fecha de vencimiento: " + nuevaFechaVencimiento.ToString("dd/MM/yyyy"));
                         this.Close();
                     }
                     catch (Exception ex)
@@ -209,7 +225,6 @@ namespace ClubManagement
             }
         }
 
-
         public class ComboBoxItem
         {
             public string Text { get; set; }
@@ -222,5 +237,3 @@ namespace ClubManagement
         }
     }
 }
-
-

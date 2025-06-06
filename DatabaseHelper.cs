@@ -37,7 +37,7 @@ namespace ClubManagement
                 Email TEXT,
                 FechaInscripcion TEXT,
                 EstadoActivo INTEGER DEFAULT 1,
-                FechaVencimientoCuota TEXT
+                FechaVencimientoCuota DATETIME
             );
 
             CREATE TABLE IF NOT EXISTS AptoFisico (
