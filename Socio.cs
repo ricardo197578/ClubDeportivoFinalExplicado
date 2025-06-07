@@ -7,7 +7,7 @@ namespace ClubManagement
     {
         public Socio()
         {
-            // Inicialización de propiedades en el constructor para .NET 4.0
+            
             HistorialCuotas = new List<Cuota>();
             ActividadesInscritas = new List<Actividad>();
         }

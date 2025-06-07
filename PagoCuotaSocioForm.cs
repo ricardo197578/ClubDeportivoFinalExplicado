@@ -15,6 +15,7 @@ namespace ClubManagement
     {
         private readonly DatabaseHelper _dbHelper;
         private List<Socio> _todosLosSocios = new List<Socio>();
+        private readonly decimal VALOR_CUOTA = 5000.00m;//deberiamos cambiar????
 
         // Controles de la interfaz
         private ListView lvwSocios;
@@ -264,6 +265,14 @@ namespace ClubManagement
                 return;
             }
 
+            // Validar que el monto sea exactamente el valor de la cuota
+            if (monto != VALOR_CUOTA)
+            {
+                MessageBox.Show(string.Format("El monto debe ser exactamente {0:C}", VALOR_CUOTA),
+                            "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
             MetodoPago metodoPago = rbEfectivo.Checked ? MetodoPago.EFECTIVO : MetodoPago.TARJETA_CREDITO;
 
             try
@@ -273,7 +282,7 @@ namespace ClubManagement
                     SQLiteTransaction transaction = conn.BeginTransaction();
                     try
                     {
-                        // 1. Obtener fecha de vencimiento actual
+                        // Obtener fecha de vencimiento actual
                         DateTime fechaVencimientoActual;
                         using (SQLiteCommand cmd = new SQLiteCommand(
                             "SELECT FechaVencimientoCuota FROM Socios WHERE NroSocio = @nroSocio",
@@ -283,10 +292,10 @@ namespace ClubManagement
                             fechaVencimientoActual = Convert.ToDateTime(cmd.ExecuteScalar());
                         }
 
-                        // 2. Calcular nueva fecha de vencimiento
+                        // Calcular nueva fecha de vencimiento
                         DateTime nuevaFechaVencimiento = fechaVencimientoActual.AddMonths(1);
 
-                        // 3. Registrar el pago
+                        // Registrar el pago
                         using (SQLiteCommand cmd = new SQLiteCommand(
                             "INSERT INTO Cuotas (NroSocio, Monto, FechaPago, FechaVencimiento, MetodoPago, Pagada) " +
                             "VALUES (@nroSocio, @monto, @fechaPago, @fechaVen, @metodo, 1)", conn))
@@ -299,7 +308,7 @@ namespace ClubManagement
                             cmd.ExecuteNonQuery();
                         }
 
-                        // 4. Actualizar fecha en Socios
+                        //Actualizar fecha en Socios
                         using (SQLiteCommand cmd = new SQLiteCommand(
                             "UPDATE Socios SET FechaVencimientoCuota = @nuevaFecha WHERE NroSocio = @nroSocio",
                             conn))

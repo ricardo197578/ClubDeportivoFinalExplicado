@@ -6,8 +6,8 @@ namespace ClubManagement
 {
     public partial class RegistrarNoSocioForm : Form
     {
-        //private DatabaseHelper dbHelper = new DatabaseHelper();
-        private readonly DatabaseHelper _dbHelper; // Añadir esta línea
+        
+        private readonly DatabaseHelper _dbHelper; 
 
         private TextBox txtNombre, txtApellido, txtDni, txtDireccion, txtTelefono, txtEmail, txtMonto;
         private DateTimePicker dtpFechaNacimiento;
@@ -91,7 +91,6 @@ namespace ClubManagement
                     {
                         cmbActividades.Items.Add(new ComboboxItem
                         {
-                            //Text = $"{reader["Nombre"]} (${reader["PrecioNoSocio"]})",
                             Text = string.Format("{0} (${1})", reader["Nombre"], reader["PrecioNoSocio"]),
 
                             Value = Convert.ToInt32(reader["Id"]),

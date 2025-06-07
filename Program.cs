@@ -11,7 +11,7 @@ namespace ClubManagement
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            // Inicializar base de datos creando una instancia
+            // Inicializar base de datos creando una instancia importante !!!!
             var dbHelper = new DatabaseHelper();
             dbHelper.InitializeDatabase();
 
