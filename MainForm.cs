@@ -8,7 +8,6 @@ namespace ClubManagement
         private Button btnRegistrarSocio;
         private Button btnRegistrarNoSocio;
         private Button btnPagoCuotaSocio;
-        private Button btnPagoNoSocio;
         private Button btnListarVencimientos;
 
         private readonly DatabaseHelper _dbHelper;
@@ -27,7 +26,7 @@ namespace ClubManagement
 
             btnRegistrarSocio = new Button
             {
-                Text = "Registrar Socio",
+                Text = "Registrar Socio/Generacion de Carnet",
                 Size = new System.Drawing.Size(200, 30),
                 Location = new System.Drawing.Point(40, 20)
             };
@@ -36,7 +35,7 @@ namespace ClubManagement
 
             btnRegistrarNoSocio = new Button
             {
-                Text = "Registrar No Socio",
+                Text = "Registrar No Socio /Cobro Actividad",
                 Size = new System.Drawing.Size(200, 30),
                 Location = new System.Drawing.Point(40, 60)
             };
@@ -51,16 +50,7 @@ namespace ClubManagement
             };
             btnPagoCuotaSocio.Click += btnPagoCuotaSocio_Click;
             this.Controls.Add(btnPagoCuotaSocio);
-
-            btnPagoNoSocio = new Button
-            {
-                Text = "Pagar Cuota No Socio",
-                Size = new System.Drawing.Size(200, 30),
-                Location = new System.Drawing.Point(40, 140)
-            };
-            btnPagoNoSocio.Click += btnPagoNoSocio_Click;
-            this.Controls.Add(btnPagoNoSocio);
-
+           
             btnListarVencimientos = new Button
             {
                 Text = "Listar Vencimientos",
@@ -95,14 +85,7 @@ namespace ClubManagement
             }
         }
 
-        private void btnPagoNoSocio_Click(object sender, EventArgs e)
-        {
-            using (var form = new PagoNoSocioForm(_dbHelper))
-            {
-                form.ShowDialog();
-            }
-        }
-
+       
         private void btnListarVencimientos_Click(object sender, EventArgs e)
         {
             using (var vencimientosForm = new ListarVencimientosForm(_dbHelper))

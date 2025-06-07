@@ -22,7 +22,7 @@ namespace ClubManagement
 
         private Button btnGuardar;
 
-        private readonly DatabaseHelper _dbHelper; 
+        private readonly DatabaseHelper _dbHelper;
 
 
         public RegistrarSocioForm(DatabaseHelper dbHelper)
@@ -108,57 +108,7 @@ namespace ClubManagement
             gbAptoFisico.Visible = checkAptoFisico.Checked;
         }
 
-        private void btnGuardar_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                if (!ValidarCampos()) return;
-
-                var socio = new Socio
-                {
-                    Nombre = txtNombre.Text,
-                    Apellido = txtApellido.Text,
-                    Dni = txtDni.Text,
-                    FechaNacimiento = dtpFechaNacimiento.Value,
-                    Direccion = txtDireccion.Text,
-                    Telefono = txtTelefono.Text,
-                    Email = txtEmail.Text,
-                    FechaInscripcion = DateTime.Now,
-                    EstadoActivo = true,
-                    FechaVencimientoCuota = DateTime.Now.AddMonths(1)
-                };
-
-                if (checkAptoFisico.Checked)
-                {
-                    var apto = new AptoFisico
-                    {
-                        FechaEmision = DateTime.Now,
-                        FechaVencimiento = dtpAptoVencimiento.Value,
-                        Medico = txtMedico.Text,
-                        Observaciones = txtObservaciones.Text
-                    };
-
-                    socio.AptoFisico = apto;
-                    var carnet = new Carnet { Socio = socio };
-                    carnet.GenerarCarnet();
-
-                    GuardarSocioBD(socio, apto, carnet);
-                    MessageBox.Show(string.Format("Socio registrado. Carnet N°:{0}", carnet.NroCarnet));
-                }
-                else
-                {
-                    GuardarSocioBD(socio, null, null);
-                    MessageBox.Show("Socio registrado sin apto físico");
-                }
-
-                this.Close();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(string.Format("Error: {0}", ex.Message));
-            }
-        }
-
+        
         private bool ValidarCampos()
         {
             if (string.IsNullOrWhiteSpace(txtNombre.Text))
@@ -179,87 +129,162 @@ namespace ClubManagement
             return true;
         }
 
+        
 
-        private void GuardarSocioBD(Socio socio, AptoFisico apto, Carnet carnet)
+        private void btnGuardar_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (!ValidarCampos()) return;
+
+                var socio = new Socio
+                {
+                    Nombre = txtNombre.Text,
+                    Apellido = txtApellido.Text,
+                    Dni = txtDni.Text,
+                    FechaNacimiento = dtpFechaNacimiento.Value,
+                    Direccion = txtDireccion.Text,
+                    Telefono = txtTelefono.Text,
+                    Email = txtEmail.Text,
+                    FechaInscripcion = DateTime.Now,
+                    EstadoActivo = true,
+                    FechaVencimientoCuota = DateTime.Now.AddMonths(1)
+                };
+
+                AptoFisico apto = null;
+                Carnet carnet = null;
+
+                if (checkAptoFisico.Checked)
+                {
+                    apto = new AptoFisico
+                    {
+                        FechaEmision = DateTime.Now,
+                        FechaVencimiento = dtpAptoVencimiento.Value,
+                        Medico = txtMedico.Text,
+                        Observaciones = txtObservaciones.Text
+                    };
+                    socio.AptoFisico = apto;
+                }
+
+                // Primero guardamos el socio (y apto físico si corresponde)
+                GuardarSocioBD(socio, apto);
+
+                // Si tiene apto físico, generamos y guardamos el carnet
+                if (checkAptoFisico.Checked)
+                {
+                    carnet = new Carnet { Socio = socio };
+                    carnet.GenerarCarnet();
+                    GuardarCarnetBD(carnet);
+
+                    MessageBox.Show(string.Format("Socio registrado. Carnet N°: {0}", carnet.NumeroCarnetFormateado));
+                }
+                else
+                {
+                    MessageBox.Show("Socio registrado sin apto físico");
+                }
+
+                this.Close();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(string.Format("Error: {0}", ex.Message));
+            }
+        }
+
+        private void GuardarSocioBD(Socio socio, AptoFisico apto)
         {
             using (var conn = _dbHelper.GetConnection())
-            using (var tx = conn.BeginTransaction())
             {
-                try
+                using (var tx = conn.BeginTransaction())
                 {
-                    // Verifica si el DNI ya existe
-                    var cmdCheckDni = new SQLiteCommand("SELECT COUNT(*) FROM Socios WHERE Dni = @dni", conn);
-                    cmdCheckDni.Parameters.AddWithValue("@dni", socio.Dni);
-                    int existeDni = Convert.ToInt32(cmdCheckDni.ExecuteScalar());
-
-                    if (existeDni > 0)
+                    try
                     {
-                        MessageBox.Show("¡Error! El DNI ya está registrado.");
-                        return;
+                        // Verifica si el DNI ya existe
+                        var cmdCheckDni = new SQLiteCommand("SELECT COUNT(*) FROM Socios WHERE Dni = @dni", conn);
+                        cmdCheckDni.Parameters.AddWithValue("@dni", socio.Dni);
+                        int existeDni = Convert.ToInt32(cmdCheckDni.ExecuteScalar());
+
+                        if (existeDni > 0)
+                        {
+                            MessageBox.Show("¡Error! El DNI ya está registrado.");
+                            return;
+                        }
+
+                        // Insertar socio
+                        var cmdSocio = new SQLiteCommand(
+                            "INSERT INTO Socios (Nombre, Apellido, Dni, FechaNacimiento, Direccion, Telefono, Email, FechaInscripcion, EstadoActivo, FechaVencimientoCuota) " +
+                            "VALUES (@nombre, @apellido, @Dni, @fechaNac, @direccion, @telefono, @email, @fechaInscripcion, @estado, @fechaVencimiento); " +
+                            "SELECT last_insert_rowid();", conn);
+
+                        cmdSocio.Parameters.AddWithValue("@nombre", socio.Nombre);
+                        cmdSocio.Parameters.AddWithValue("@apellido", socio.Apellido);
+                        cmdSocio.Parameters.AddWithValue("@Dni", socio.Dni);
+                        cmdSocio.Parameters.AddWithValue("@fechaNac", socio.FechaNacimiento);
+                        cmdSocio.Parameters.AddWithValue("@direccion", socio.Direccion);
+                        cmdSocio.Parameters.AddWithValue("@telefono", socio.Telefono);
+                        cmdSocio.Parameters.AddWithValue("@email", socio.Email);
+                        cmdSocio.Parameters.AddWithValue("@fechaInscripcion", socio.FechaInscripcion);
+                        cmdSocio.Parameters.AddWithValue("@estado", socio.EstadoActivo ? 1 : 0);
+                        cmdSocio.Parameters.AddWithValue("@fechaVencimiento", socio.FechaVencimientoCuota);
+
+                        socio.NroSocio = Convert.ToInt32(cmdSocio.ExecuteScalar());
+
+                        // Insertar apto físico si corresponde
+                        if (apto != null)
+                        {
+                            var cmdApto = new SQLiteCommand(
+                                "INSERT INTO AptoFisico (NroSocio, FechaEmision, FechaVencimiento, Medico, Observaciones) " +
+                                "VALUES (@nroSocio, @fechaEmision, @fechaVenc, @medico, @obs)", conn);
+
+                            cmdApto.Parameters.AddWithValue("@nroSocio", socio.NroSocio);
+                            cmdApto.Parameters.AddWithValue("@fechaEmision", apto.FechaEmision);
+                            cmdApto.Parameters.AddWithValue("@fechaVenc", apto.FechaVencimiento);
+                            cmdApto.Parameters.AddWithValue("@medico", apto.Medico);
+                            cmdApto.Parameters.AddWithValue("@obs", apto.Observaciones);
+                            cmdApto.ExecuteNonQuery();
+                        }
+
+                        tx.Commit();
                     }
-
-                    // Insertar socio
-                    var cmdSocio = new SQLiteCommand(
-                        "INSERT INTO Socios (Nombre, Apellido, Dni, FechaNacimiento, Direccion, Telefono, Email, FechaInscripcion, EstadoActivo, FechaVencimientoCuota) " +
-                        "VALUES (@nombre, @apellido, @Dni, @fechaNac, @direccion, @telefono, @email, @fechaInscripcion, @estado, @fechaVencimiento); " +
-                        "SELECT last_insert_rowid();", conn);
-
-                    cmdSocio.Parameters.AddWithValue("@nombre", socio.Nombre);
-                    cmdSocio.Parameters.AddWithValue("@apellido", socio.Apellido);
-                    cmdSocio.Parameters.AddWithValue("@Dni", socio.Dni);
-                    cmdSocio.Parameters.AddWithValue("@fechaNac", socio.FechaNacimiento);
-                    cmdSocio.Parameters.AddWithValue("@direccion", socio.Direccion);
-                    cmdSocio.Parameters.AddWithValue("@telefono", socio.Telefono);
-                    cmdSocio.Parameters.AddWithValue("@email", socio.Email);
-                    cmdSocio.Parameters.AddWithValue("@fechaInscripcion", socio.FechaInscripcion);
-                    cmdSocio.Parameters.AddWithValue("@estado", socio.EstadoActivo ? 1 : 0);
-                    cmdSocio.Parameters.AddWithValue("@fechaVencimiento", socio.FechaVencimientoCuota);
-
-                    // Obtener el NroSocio (que es el ID autoincremental)
-                    socio.NroSocio = Convert.ToInt32(cmdSocio.ExecuteScalar());
-
-                    // Insertar apto físico si corresponde
-                    if (apto != null)
+                    catch (Exception ex)
                     {
-                        var cmdApto = new SQLiteCommand(
-                            "INSERT INTO AptoFisico (NroSocio, FechaEmision, FechaVencimiento, Medico, Observaciones) " + // Cambiado IdSocio por NroSocio
-                            "VALUES (@nroSocio, @fechaEmision, @fechaVenc, @medico, @obs)", conn);
-
-                        cmdApto.Parameters.AddWithValue("@nroSocio", socio.NroSocio); // Cambiado idSocio por nroSocio
-                        cmdApto.Parameters.AddWithValue("@fechaEmision", apto.FechaEmision);
-                        cmdApto.Parameters.AddWithValue("@fechaVenc", apto.FechaVencimiento);
-                        cmdApto.Parameters.AddWithValue("@medico", apto.Medico);
-                        cmdApto.Parameters.AddWithValue("@obs", apto.Observaciones);
-                        cmdApto.ExecuteNonQuery();
+                        tx.Rollback();
+                        MessageBox.Show(string.Format("Error al guardar socio: {0}", ex.Message));
+                        throw;
                     }
-
-                    // Insertar carnet si corresponde
-                    if (carnet != null)
-                    {
-                        var cmdCarnet = new SQLiteCommand(
-                            "INSERT INTO Carnets (NroSocio, NroCarnet, FechaEmision, FechaVencimiento) " + // Cambiado IdSocio por NroSocio
-                            "VALUES (@nroSocio, @nroCarnet, @fechaEmision, @fechaVencimiento)", conn);
-
-                        cmdCarnet.Parameters.AddWithValue("@nroSocio", socio.NroSocio); // Cambiado idSocio por nroSocio
-                        cmdCarnet.Parameters.AddWithValue("@nroCarnet", carnet.NroCarnet);
-                        cmdCarnet.Parameters.AddWithValue("@fechaEmision", carnet.FechaEmision);
-                        cmdCarnet.Parameters.AddWithValue("@fechaVencimiento", carnet.FechaVencimiento);
-                        cmdCarnet.ExecuteNonQuery();
-                    }
-
-                    tx.Commit();
-                }
-                catch (Exception ex)
-                {
-                    tx.Rollback();
-                    MessageBox.Show(string.Format("Error al guardar:{0}",ex.Message));
-                    throw;
                 }
             }
         }
 
+        private void GuardarCarnetBD(Carnet carnet)
+        {
+            using (var conn = _dbHelper.GetConnection())
+            {
+                using (var tx = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        var cmdCarnet = new SQLiteCommand(
+                            "INSERT INTO Carnets (NroSocio, NroCarnet, FechaEmision, FechaVencimiento) " +
+                            "VALUES (@nroSocio, @nroCarnet, @fechaEmision, @fechaVencimiento)", conn);
+
+                        cmdCarnet.Parameters.AddWithValue("@nroSocio", carnet.Socio.NroSocio);
+                        cmdCarnet.Parameters.AddWithValue("@nroCarnet", carnet.NroCarnet);
+                        cmdCarnet.Parameters.AddWithValue("@fechaEmision", carnet.FechaEmision);
+                        cmdCarnet.Parameters.AddWithValue("@fechaVencimiento", carnet.FechaVencimiento);
+                        cmdCarnet.ExecuteNonQuery();
+
+                        tx.Commit();
+                    }
+                    catch (Exception ex)
+                    {
+                        tx.Rollback();
+                        MessageBox.Show(string.Format("Error al guardar carnet: {0}", ex.Message));
+                        throw;
+                    }
+                }
+            }
+        }
 
     }
 }
-
-       

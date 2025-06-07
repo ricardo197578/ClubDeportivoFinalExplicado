@@ -106,6 +106,7 @@ namespace ClubManagement
                 IdActividad INTEGER,
                 Fecha TEXT,
                 MetodoPago TEXT,
+                Monto REAL,
                 PRIMARY KEY(IdNoSocio, IdActividad, Fecha),
                 FOREIGN KEY(IdNoSocio) REFERENCES NoSocios(Id) ON DELETE CASCADE,
                 FOREIGN KEY(IdActividad) REFERENCES Actividades(Id) ON DELETE CASCADE

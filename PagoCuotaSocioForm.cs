@@ -1,6 +1,7 @@
 using System;
 using System.Data.SQLite;
 using System.Windows.Forms;
+using System.Collections.Generic;
 
 namespace ClubManagement
 {
@@ -13,15 +14,27 @@ namespace ClubManagement
     public partial class PagoCuotaSocioForm : Form
     {
         private readonly DatabaseHelper _dbHelper;
+        private List<Socio> _todosLosSocios = new List<Socio>();
 
-        private ComboBox cmbSocios;
+        // Controles de la interfaz
+        private ListView lvwSocios;
+        private TextBox txtBuscarSocio;
         private TextBox txtMonto;
         private RadioButton rbEfectivo;
         private RadioButton rbTarjeta;
         private Button btnPagar;
-        private Label lblSocio;
+        private Label lblBuscar;
         private Label lblMonto;
         private GroupBox gbMetodo;
+
+        // Clase para representar un socio
+        private class Socio
+        {
+            public int NroSocio { get; set; }
+            public string Nombre { get; set; }
+            public string Apellido { get; set; }
+            public DateTime FechaVencimiento { get; set; }
+        }
 
         public PagoCuotaSocioForm(DatabaseHelper dbHelper)
         {
@@ -32,83 +45,93 @@ namespace ClubManagement
 
         private void InitializeComponent()
         {
+            // Configuración inicial del formulario
             this.Text = "Pago de Cuota";
-            this.Width = 400;
-            this.Height = 300;
+            this.Width = 500;
+            this.Height = 400;
             this.StartPosition = FormStartPosition.CenterScreen;
 
-            lblSocio = new Label
-            {
-                Text = "Seleccione Socio:",
-                Left = 20,
-                Top = 20,
-                Width = 120
-            };
-            this.Controls.Add(lblSocio);
+            // Control de búsqueda
+            lblBuscar = new Label();
+            lblBuscar.Text = "Buscar Socio:";
+            lblBuscar.Left = 20;
+            lblBuscar.Top = 20;
+            lblBuscar.Width = 100;
+            this.Controls.Add(lblBuscar);
 
-            cmbSocios = new ComboBox
-            {
-                Left = 150,
-                Top = 18,
-                Width = 200,
-                DropDownStyle = ComboBoxStyle.DropDownList
-            };
-            this.Controls.Add(cmbSocios);
+            txtBuscarSocio = new TextBox();
+            txtBuscarSocio.Left = 120;
+            txtBuscarSocio.Top = 18;
+            txtBuscarSocio.Width = 350;
+            txtBuscarSocio.TextChanged += new EventHandler(TxtBuscarSocio_TextChanged);
+            this.Controls.Add(txtBuscarSocio);
 
-            lblMonto = new Label
-            {
-                Text = "Monto a Pagar:",
-                Left = 20,
-                Top = 60,
-                Width = 120
-            };
+            // ListView para mostrar socios
+            lvwSocios = new ListView();
+            lvwSocios.View = View.Details;
+            lvwSocios.FullRowSelect = true;
+            lvwSocios.GridLines = true;
+            lvwSocios.Left = 20;
+            lvwSocios.Top = 50;
+            lvwSocios.Width = 450;
+            lvwSocios.Height = 150;
+            lvwSocios.MultiSelect = false;
+
+            // Columnas del ListView
+            lvwSocios.Columns.Add("N° Socio", 80, HorizontalAlignment.Left);
+            lvwSocios.Columns.Add("Nombre", 200, HorizontalAlignment.Left);
+            lvwSocios.Columns.Add("Vencimiento", 150, HorizontalAlignment.Left);
+
+            this.Controls.Add(lvwSocios);
+
+            // Monto a pagar
+            lblMonto = new Label();
+            lblMonto.Text = "Monto a Pagar:";
+            lblMonto.Left = 20;
+            lblMonto.Top = 210;
+            lblMonto.Width = 100;
             this.Controls.Add(lblMonto);
 
-            txtMonto = new TextBox
-            {
-                Left = 150,
-                Top = 58,
-                Width = 200
-            };
+            txtMonto = new TextBox();
+            txtMonto.Left = 120;
+            txtMonto.Top = 208;
+            txtMonto.Width = 200;
             this.Controls.Add(txtMonto);
 
-            gbMetodo = new GroupBox
-            {
-                Text = "Método de Pago",
-                Left = 20,
-                Top = 100,
-                Width = 330,
-                Height = 70
-            };
-            this.Controls.Add(gbMetodo);
+            // Grupo de métodos de pago
+            gbMetodo = new GroupBox();
+            gbMetodo.Text = "Método de Pago";
+            gbMetodo.Left = 20;
+            gbMetodo.Top = 240;
+            gbMetodo.Width = 450;
+            gbMetodo.Height = 70;
 
-            rbEfectivo = new RadioButton
-            {
-                Text = "Efectivo",
-                Left = 20,
-                Top = 30,
-                Width = 100,
-                Checked = true
-            };
+            // RadioButton para efectivo
+            rbEfectivo = new RadioButton();
+            rbEfectivo.Text = "Efectivo";
+            rbEfectivo.Left = 20;
+            rbEfectivo.Top = 20;
+            rbEfectivo.Width = 100;
+            rbEfectivo.Checked = true;
             gbMetodo.Controls.Add(rbEfectivo);
 
-            rbTarjeta = new RadioButton
-            {
-                Text = "Tarjeta de Crédito",
-                Left = 150,
-                Top = 30,
-                Width = 150
-            };
+            // RadioButton para tarjeta
+            rbTarjeta = new RadioButton();
+            rbTarjeta.Text = "Tarjeta de Crédito";
+            rbTarjeta.Left = 150;
+            rbTarjeta.Top = 20;
+            rbTarjeta.Width = 150;
             gbMetodo.Controls.Add(rbTarjeta);
 
-            btnPagar = new Button
-            {
-                Text = "Pagar",
-                Left = 150,
-                Top = 190,
-                Width = 100
-            };
-            btnPagar.Click += new EventHandler(btnPagar_Click);
+            this.Controls.Add(gbMetodo);
+
+            // Botón para realizar el pago
+            btnPagar = new Button();
+            btnPagar.Text = "Pagar";
+            btnPagar.Left = 200;
+            btnPagar.Top = 320;
+            btnPagar.Width = 100;
+            btnPagar.Click += new EventHandler(BtnPagar_Click);
             this.Controls.Add(btnPagar);
         }
 
@@ -116,49 +139,128 @@ namespace ClubManagement
         {
             try
             {
-                cmbSocios.Items.Clear();
-                using (var conn = _dbHelper.GetConnection())
+                _todosLosSocios.Clear();
+
+                using (SQLiteConnection conn = _dbHelper.GetConnection())
                 {
-                    var cmd = new SQLiteCommand(
-                        "SELECT NroSocio, Nombre || ' ' || Apellido AS NombreCompleto, FechaVencimientoCuota " +
-                        "FROM Socios WHERE EstadoActivo = 1", conn);
-                    var reader = cmd.ExecuteReader();
+                    SQLiteCommand cmd = new SQLiteCommand(
+                        "SELECT NroSocio, Nombre, Apellido, FechaVencimientoCuota " +
+                        "FROM Socios WHERE EstadoActivo = 1 ORDER BY Apellido, Nombre", conn);
+                    SQLiteDataReader reader = cmd.ExecuteReader();
 
                     while (reader.Read())
                     {
-                        DateTime fechaVenc = Convert.ToDateTime(reader["FechaVencimientoCuota"]);
-                        cmbSocios.Items.Add(new ComboBoxItem
+                        _todosLosSocios.Add(new Socio
                         {
-                            Text = string.Format("{0} (Vence: {1})", reader["NombreCompleto"], fechaVenc.ToString("dd/MM/yyyy")),
-                            Value = Convert.ToInt32(reader["NroSocio"])
+                            NroSocio = Convert.ToInt32(reader["NroSocio"]),
+                            Nombre = reader["Nombre"].ToString(),
+                            Apellido = reader["Apellido"].ToString(),
+                            FechaVencimiento = Convert.ToDateTime(reader["FechaVencimientoCuota"])
                         });
                     }
                 }
 
-                if (cmbSocios.Items.Count > 0)
-                    cmbSocios.SelectedIndex = 0;
+                // Mostrar todos los socios inicialmente
+                MostrarSociosEnListView(_todosLosSocios);
             }
             catch (Exception ex)
             {
-                MessageBox.Show(string.Format("Error al cargar socios: {0}", ex.Message));
+                MessageBox.Show(string.Format("Error al cargar socios: {0}", ex.Message),
+                              "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        private void btnPagar_Click(object sender, EventArgs e)
+       
+
+        private void TxtBuscarSocio_TextChanged(object sender, EventArgs e)
         {
-            if (cmbSocios.SelectedItem == null)
+            string textoBusqueda = txtBuscarSocio.Text.Trim();
+
+            if (string.IsNullOrWhiteSpace(textoBusqueda))
             {
-                MessageBox.Show("Seleccione un socio");
+                MostrarSociosEnListView(_todosLosSocios);
                 return;
             }
 
-            ComboBoxItem selected = (ComboBoxItem)cmbSocios.SelectedItem;
-            int nroSocio = selected.Value;
+            List<Socio> sociosFiltrados = new List<Socio>();
+
+            foreach (var socio in _todosLosSocios)
+            {
+                // Buscar por número de socio
+                if (textoBusqueda == socio.NroSocio.ToString())
+                {
+                    sociosFiltrados.Add(socio);
+                    continue;
+                }
+
+                // Buscar por nombre o apellido
+                string nombreCompleto = string.Format("{0} {1}", socio.Nombre, socio.Apellido).ToLower();
+                string apellidoNombre = string.Format("{0}, {1}", socio.Apellido, socio.Nombre).ToLower();
+
+                if (nombreCompleto.Contains(textoBusqueda.ToLower()) ||
+                    apellidoNombre.Contains(textoBusqueda.ToLower()))
+                {
+                    sociosFiltrados.Add(socio);
+                }
+            }
+
+            // Mostrar resultados sin cambiar el foco
+            MostrarSociosEnListView(sociosFiltrados, mantenerFoco: true);
+
+            if (sociosFiltrados.Count == 0)
+            {
+                MessageBox.Show("No se encontraron socios con ese criterio de búsqueda",
+                              "Búsqueda", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        private void MostrarSociosEnListView(List<Socio> socios, bool mantenerFoco = false)
+        {
+            // Guardar el estado del foco
+            bool focoEnBusqueda = txtBuscarSocio.Focused;
+
+            lvwSocios.BeginUpdate();
+            lvwSocios.Items.Clear();
+
+            foreach (var socio in socios)
+            {
+                ListViewItem item = new ListViewItem(socio.NroSocio.ToString());
+                item.SubItems.Add(string.Format("{0}, {1}", socio.Apellido, socio.Nombre));
+                item.SubItems.Add(socio.FechaVencimiento.ToString("dd/MM/yyyy"));
+                item.Tag = socio.NroSocio;
+                lvwSocios.Items.Add(item);
+            }
+
+            if (lvwSocios.Items.Count > 0)
+            {
+                lvwSocios.Items[0].Selected = true;
+            }
+
+            lvwSocios.EndUpdate();
+
+            // Restaurar el foco si es necesario
+            if (mantenerFoco && focoEnBusqueda)
+            {
+                txtBuscarSocio.Focus();
+            }
+        }
+
+        private void BtnPagar_Click(object sender, EventArgs e)
+        {
+            if (lvwSocios.SelectedItems.Count == 0)
+            {
+                MessageBox.Show("Seleccione un socio de la lista",
+                               "Advertencia", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            int nroSocio = (int)lvwSocios.SelectedItems[0].Tag;
 
             decimal monto;
             if (!decimal.TryParse(txtMonto.Text, out monto) || monto <= 0)
             {
-                MessageBox.Show("Ingrese un monto válido");
+                MessageBox.Show("Ingrese un monto válido mayor a cero",
+                              "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
@@ -166,14 +268,14 @@ namespace ClubManagement
 
             try
             {
-                using (var conn = _dbHelper.GetConnection())
-                using (var transaction = conn.BeginTransaction())
+                using (SQLiteConnection conn = _dbHelper.GetConnection())
                 {
+                    SQLiteTransaction transaction = conn.BeginTransaction();
                     try
                     {
-                        // 1. Obtener la fecha de vencimiento actual del socio
+                        // 1. Obtener fecha de vencimiento actual
                         DateTime fechaVencimientoActual;
-                        using (var cmd = new SQLiteCommand(
+                        using (SQLiteCommand cmd = new SQLiteCommand(
                             "SELECT FechaVencimientoCuota FROM Socios WHERE NroSocio = @nroSocio",
                             conn))
                         {
@@ -181,11 +283,11 @@ namespace ClubManagement
                             fechaVencimientoActual = Convert.ToDateTime(cmd.ExecuteScalar());
                         }
 
-                        // 2. Calcular NUEVA fecha de vencimiento (1 mes después de la fecha actual de vencimiento)
+                        // 2. Calcular nueva fecha de vencimiento
                         DateTime nuevaFechaVencimiento = fechaVencimientoActual.AddMonths(1);
 
-                        // 3. Registrar el pago en la tabla Cuotas
-                        using (var cmd = new SQLiteCommand(
+                        // 3. Registrar el pago
+                        using (SQLiteCommand cmd = new SQLiteCommand(
                             "INSERT INTO Cuotas (NroSocio, Monto, FechaPago, FechaVencimiento, MetodoPago, Pagada) " +
                             "VALUES (@nroSocio, @monto, @fechaPago, @fechaVen, @metodo, 1)", conn))
                         {
@@ -197,8 +299,8 @@ namespace ClubManagement
                             cmd.ExecuteNonQuery();
                         }
 
-                        // 4. Actualizar la fecha de vencimiento en la tabla Socios
-                        using (var cmd = new SQLiteCommand(
+                        // 4. Actualizar fecha en Socios
+                        using (SQLiteCommand cmd = new SQLiteCommand(
                             "UPDATE Socios SET FechaVencimientoCuota = @nuevaFecha WHERE NroSocio = @nroSocio",
                             conn))
                         {
@@ -208,32 +310,36 @@ namespace ClubManagement
                         }
 
                         transaction.Commit();
-                        MessageBox.Show("Pago registrado exitosamente.\n" +
-                                       "Nueva fecha de vencimiento: " + nuevaFechaVencimiento.ToString("dd/MM/yyyy"));
+
+                        // Mostrar resumen del pago
+                        string resumen = string.Format(
+                            "Pago registrado exitosamente:\n\n" +
+                            "Socio: {0}\n" +
+                            "Monto: {1:C}\n" +
+                            "Método: {2}\n" +
+                            "Nuevo vencimiento: {3:dd/MM/yyyy}",
+                            lvwSocios.SelectedItems[0].SubItems[1].Text,
+                            monto,
+                            metodoPago,
+                            nuevaFechaVencimiento);
+
+                        MessageBox.Show(resumen, "Pago Registrado", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         this.Close();
                     }
                     catch (Exception ex)
                     {
                         transaction.Rollback();
-                        MessageBox.Show("Error al procesar pago: " + ex.Message);
+                        MessageBox.Show(string.Format("Error al procesar pago: {0}", ex.Message),
+                                      "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error general: " + ex.Message);
-            }
-        }
-
-        public class ComboBoxItem
-        {
-            public string Text { get; set; }
-            public int Value { get; set; }
-
-            public override string ToString()
-            {
-                return Text;
+                MessageBox.Show(string.Format("Error general: {0}", ex.Message),
+                              "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }
 }
+
