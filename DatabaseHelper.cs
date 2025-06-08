@@ -26,6 +26,16 @@ namespace ClubManagement
         public void InitializeDatabase()
         {
             string sql = @"
+	    CREATE TABLE IF NOT EXISTS Administradores (
+   	 	Id INTEGER PRIMARY KEY AUTOINCREMENT,
+  	  	Usuario TEXT NOT NULL UNIQUE,
+   	 	PasswordHash TEXT NOT NULL,
+   	 	Nombre TEXT NOT NULL,
+   	 	Email TEXT,
+   	 	UltimoLogin TEXT
+	    );	
+	    
+
             CREATE TABLE IF NOT EXISTS Socios (
                 NroSocio INTEGER PRIMARY KEY AUTOINCREMENT,
                 Nombre TEXT NOT NULL,
