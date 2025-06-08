@@ -19,6 +19,7 @@ namespace ClubManagement
             _dbHelper = dbHelper;
             InitializeComponent();
             InitializeAdminUser();
+            		
         }
 
         private void InitializeComponent()

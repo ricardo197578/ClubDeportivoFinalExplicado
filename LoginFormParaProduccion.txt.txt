@@ -1,0 +1,141 @@
+using System;
+using System.Data.SQLite;
+using System.Security.Cryptography;
+using System.Text;
+using System.Windows.Forms;
+
+namespace ClubManagement
+{
+    public class LoginForm : Form
+    {
+        private readonly DatabaseHelper _dbHelper;
+        private TextBox txtUsuario;
+        private TextBox txtPassword;
+        private Button btnLogin;
+        private Label lblMensaje;
+        private int intentosFallidos = 0;
+        private const int MaxIntentos = 3;
+
+        public LoginForm(DatabaseHelper dbHelper)
+        {
+            _dbHelper = dbHelper;
+            InitializeComponent();
+            VerificarExistenciaAdministradores();
+        }
+
+        private void InitializeComponent()
+        {
+            // ... (el mismo código de inicialización de componentes UI se mantiene igual)
+            // Solo cambia el nombre del método llamado en el constructor
+        }
+
+        private void VerificarExistenciaAdministradores()
+        {
+            try
+            {
+                using (var cmd = new SQLiteCommand("SELECT COUNT(*) FROM Administradores", _dbHelper.GetConnection()))
+                {
+                    int count = Convert.ToInt32(cmd.ExecuteScalar());
+                    if (count == 0)
+                    {
+                        Logger.Error("No hay usuarios administradores en la base de datos");
+                        MessageBox.Show("Error de configuración del sistema. Contacte al servicio técnico.", 
+                                        "Error crítico", 
+                                        MessageBoxButtons.OK, 
+                                        MessageBoxIcon.Error);
+                        Application.Exit();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Error verificando administradores: {ex.Message}");
+                throw;
+            }
+        }
+
+       
+	private string HashPassword(string password)
+        {
+            using (SHA256 sha256 = SHA256.Create())
+            {
+                byte[] bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
+                StringBuilder builder = new StringBuilder();
+                for (int i = 0; i < bytes.Length; i++)
+                {
+                    builder.Append(bytes[i].ToString("x2"));
+                }
+                return builder.ToString();
+            }
+        }
+
+        private void BtnLogin_Click(object sender, EventArgs e)
+        {
+            string usuario = txtUsuario.Text.Trim();
+            string password = txtPassword.Text;
+
+            if (string.IsNullOrEmpty(usuario) || string.IsNullOrEmpty(password))
+            {
+                lblMensaje.Text = "Usuario y contraseña son requeridos";
+                return;
+            }
+
+            // Verificar intentos fallidos
+            if (intentosFallidos >= MaxIntentos)
+            {
+                lblMensaje.Text = "Demasiados intentos fallidos. Cuenta bloqueada.";
+                Logger.Warning($"Intento de login bloqueado para usuario: {usuario}");
+                return;
+            }
+
+            try
+            {
+                string sql = "SELECT PasswordHash, Nombre FROM Administradores WHERE Usuario = @Usuario";
+                using (var cmd = new SQLiteCommand(sql, _dbHelper.GetConnection()))
+                {
+                    cmd.Parameters.AddWithValue("@Usuario", usuario);
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            string storedHash = reader["PasswordHash"].ToString();
+                            string inputHash = HashPassword(password);
+
+                            if (storedHash == inputHash)
+                            {
+                                // Actualizar último login
+                                sql = "UPDATE Administradores SET UltimoLogin = datetime('now') WHERE Usuario = @Usuario";
+                                using (var updateCmd = new SQLiteCommand(sql, _dbHelper.GetConnection()))
+                                {
+                                    updateCmd.Parameters.AddWithValue("@Usuario", usuario);
+                                    updateCmd.ExecuteNonQuery();
+                                }
+
+                                Logger.Info($"Login exitoso para usuario: {usuario}");
+                                this.DialogResult = DialogResult.OK;
+                                this.Close();
+                            }
+                            else
+                            {
+                                intentosFallidos++;
+                                lblMensaje.Text = $"Contraseña incorrecta. Intentos restantes: {MaxIntentos - intentosFallidos}";
+                                Logger.Warning($"Intento fallido de login para usuario: {usuario}");
+                            }
+                        }
+                        else
+                        {
+                            intentosFallidos++;
+                            lblMensaje.Text = $"Usuario no encontrado. Intentos restantes: {MaxIntentos - intentosFallidos}";
+                            Logger.Warning($"Intento de login con usuario inexistente: {usuario}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Error durante login: {ex.Message}");
+                lblMensaje.Text = "Error al procesar la solicitud. Intente nuevamente.";
+            }
+        }
+    }
+}
