@@ -180,6 +180,19 @@ namespace ClubManagement
 
                         MessageBox.Show(resumen, "Pago Registrado", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         LimpiarCampos();
+
+                        // Después del pago exitoso:
+                        string actualizarEstado = @"
+                              UPDATE Socios 
+                              SET EstadoActivo = 1 
+                              WHERE NroSocio = @nroSocio";
+
+                        using (var cmd = new SQLiteCommand(actualizarEstado, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@nroSocio", _nroSocio);
+                            cmd.ExecuteNonQuery();
+                        }
+
                     }
                     catch (Exception ex)
                     {

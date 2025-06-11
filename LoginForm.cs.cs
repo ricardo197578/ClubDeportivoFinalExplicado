@@ -33,7 +33,7 @@ namespace ClubManagement
 
             Label lblTitulo = new Label
             {
-                Text = "Acceso Administrador",
+                Text = "Administrador",
                 Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold),
                 AutoSize = true,
                 Location = new System.Drawing.Point(80, 20)

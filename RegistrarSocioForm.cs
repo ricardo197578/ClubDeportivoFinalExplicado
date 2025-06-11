@@ -6,6 +6,8 @@ namespace ClubManagement
 {
     public class RegistrarSocioForm : Form
     {
+        private ComboBox cmbTipoMembresia;
+
         private TextBox txtNombre;
         private TextBox txtApellido;
         private TextBox txtDni;
@@ -35,7 +37,7 @@ namespace ClubManagement
         private void InitializeComponent()
         {
             this.Text = "Registrar Socio";
-            this.Size = new System.Drawing.Size(400, 500);
+            this.Size = new System.Drawing.Size(400, 550);
             this.StartPosition = FormStartPosition.CenterScreen;
 
             int top = 20;
@@ -44,6 +46,21 @@ namespace ClubManagement
             txtNombre = CrearTextBox("Nombre", ref top);
             txtApellido = CrearTextBox("Apellido", ref top);
             txtDni = CrearTextBox("DNI", ref top);
+
+            var lblTipoMembresia = new Label() { Text = "Tipo Membresía", Left = 20, Top = top, Width = 120 };
+            this.Controls.Add(lblTipoMembresia);
+            cmbTipoMembresia = new ComboBox()
+            {
+                Left = 150,
+                Top = top,
+                Width = 200,
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            this.Controls.Add(cmbTipoMembresia);
+            top += spacing;
+            CargarTiposMembresia();
+
+
 
             var lblFechaNacimiento = new Label() { Text = "Fecha Nacimiento", Left = 20, Top = top, Width = 120 };
             this.Controls.Add(lblFechaNacimiento);
@@ -108,7 +125,7 @@ namespace ClubManagement
             gbAptoFisico.Visible = checkAptoFisico.Checked;
         }
 
-        
+
         private bool ValidarCampos()
         {
             if (string.IsNullOrWhiteSpace(txtNombre.Text))
@@ -126,17 +143,38 @@ namespace ClubManagement
                 MessageBox.Show("Ingrese el DNI");
                 return false;
             }
+            if (cmbTipoMembresia.SelectedItem == null)
+            {
+                MessageBox.Show("Seleccione un tipo de membresía");
+                return false;
+            }
             return true;
         }
 
-        
+        private void CargarTiposMembresia()
+        {
+            try
+            {
+                cmbTipoMembresia.DisplayMember = "Nombre"; // Mostrará solo el nombre
+                //cmbTipoMembresia.ValueMember = "PrecioMembresia"; // Puedes usar esto si necesitas el valor
+
+                var tipos = _dbHelper.ObtenerTiposMembresia();
+                cmbTipoMembresia.DataSource = tipos;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al cargar tipos: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+            }
+        }
 
         private void btnGuardar_Click(object sender, EventArgs e)
         {
             try
             {
                 if (!ValidarCampos()) return;
-
+                var membresia = (TipoMembresia)cmbTipoMembresia.SelectedItem;
+              
                 var socio = new Socio
                 {
                     Nombre = txtNombre.Text,
@@ -148,7 +186,8 @@ namespace ClubManagement
                     Email = txtEmail.Text,
                     FechaInscripcion = DateTime.Now,
                     EstadoActivo = true,
-                    FechaVencimientoCuota = DateTime.Now.AddMonths(1)
+                    FechaVencimientoCuota = CalcularVencimientoCuota(membresia),
+                    Membresia = membresia
                 };
 
                 AptoFisico apto = null;
@@ -166,8 +205,8 @@ namespace ClubManagement
                     socio.AptoFisico = apto;
                 }
 
-                // Primero guardamos el socio (y apto físico si corresponde)
-                GuardarSocioBD(socio, apto);
+                GuardarSocioBD(socio, apto, membresia.Nombre);
+
 
                 // Si tiene apto físico, generamos y guardamos el carnet
                 if (checkAptoFisico.Checked)
@@ -191,7 +230,8 @@ namespace ClubManagement
             }
         }
 
-        private void GuardarSocioBD(Socio socio, AptoFisico apto)
+
+        private void GuardarSocioBD(Socio socio, AptoFisico apto, string tipoMembresia)
         {
             using (var conn = _dbHelper.GetConnection())
             {
@@ -210,10 +250,13 @@ namespace ClubManagement
                             return;
                         }
 
-                        // Insertar socio
+                        // Insertar socio con el tipo de membresía
                         var cmdSocio = new SQLiteCommand(
-                            "INSERT INTO Socios (Nombre, Apellido, Dni, FechaNacimiento, Direccion, Telefono, Email, FechaInscripcion, EstadoActivo, FechaVencimientoCuota) " +
-                            "VALUES (@nombre, @apellido, @Dni, @fechaNac, @direccion, @telefono, @email, @fechaInscripcion, @estado, @fechaVencimiento); " +
+                            "INSERT INTO Socios (Nombre, Apellido, Dni, FechaNacimiento, Direccion, Telefono, Email, " +
+                            "FechaInscripcion, EstadoActivo, FechaVencimientoCuota, IdTipoMembresia) " +
+                            "VALUES (@nombre, @apellido, @Dni, @fechaNac, @direccion, @telefono, @email, " +
+                            "@fechaInscripcion, @estado, @fechaVencimiento, " +
+                            "(SELECT Id FROM TiposMembresia WHERE Nombre = @tipoMembresia)); " +
                             "SELECT last_insert_rowid();", conn);
 
                         cmdSocio.Parameters.AddWithValue("@nombre", socio.Nombre);
@@ -226,6 +269,7 @@ namespace ClubManagement
                         cmdSocio.Parameters.AddWithValue("@fechaInscripcion", socio.FechaInscripcion);
                         cmdSocio.Parameters.AddWithValue("@estado", socio.EstadoActivo ? 1 : 0);
                         cmdSocio.Parameters.AddWithValue("@fechaVencimiento", socio.FechaVencimientoCuota);
+                        cmdSocio.Parameters.AddWithValue("@tipoMembresia", tipoMembresia);
 
                         socio.NroSocio = Convert.ToInt32(cmdSocio.ExecuteScalar());
 
@@ -285,6 +329,17 @@ namespace ClubManagement
                 }
             }
         }
+
+        private DateTime CalcularVencimientoCuota(TipoMembresia membresia)
+        {
+            DateTime hoy = DateTime.Now;
+            DateTime fechaVencimiento = hoy.AddMonths(1);
+
+            // Aplicar días de gracia según el tipo de membresía
+            return fechaVencimiento.AddDays(membresia.DiasGraciaVencimiento);
+        }
+
+
 
     }
 }

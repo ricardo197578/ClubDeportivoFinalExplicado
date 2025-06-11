@@ -14,5 +14,17 @@ namespace ClubManagement
         {
             Actividades = new List<Actividad>();
         }
+
+        // Implementación específica para Profesor
+        public override string ObtenerTipoMembresia()
+        {
+            return EsTitular ? "Profesor Titular" : "Profesor Suplente";
+        }
+
+        // Profesores tienen acceso gratuito
+        public override decimal CalcularDescuento(decimal montoOriginal)
+        {
+            return 0; // Acceso gratuito
+        }
     }
 }

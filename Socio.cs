@@ -20,6 +20,7 @@ namespace ClubManagement
         public DateTime FechaVencimientoCuota { get; set; }
         public List<Cuota> HistorialCuotas { get; set; }
         public List<Actividad> ActividadesInscritas { get; set; }
+        public TipoMembresia Membresia { get; set; }
 
         public void PagarCuota(Cuota cuota)
         {
@@ -38,5 +39,19 @@ namespace ClubManagement
             EstadoActivo = true;
             FechaVencimientoCuota = DateTime.Now.AddMonths(1);
         }
+
+        public override string ObtenerTipoMembresia()
+        {
+            if (Membresia == null)
+            {
+                return "Sin membresía asignada";
+            }
+            else
+            {
+                return Membresia.Nombre + " - " + (EstadoActivo ? "Activa" : "Inactiva");
+            }
+        }
+
+
     }
 }

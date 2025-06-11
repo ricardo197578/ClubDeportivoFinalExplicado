@@ -17,5 +17,17 @@ namespace ClubManagement
         {
             Actividades.Add(actividad);
         }
+
+        // Implementación específica para NoSocio
+        public override string ObtenerTipoMembresia()
+        {
+            return "Visitante";
+        }
+
+        // NoSocios pagan un recargo del 10%
+        public override decimal CalcularDescuento(decimal montoOriginal)
+        {
+            return montoOriginal * 1.1m;
+        }
     }
 }
