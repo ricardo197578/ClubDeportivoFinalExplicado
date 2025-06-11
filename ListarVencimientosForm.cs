@@ -318,12 +318,13 @@ namespace ClubManagement
                     tipoMembresia
                 );
 
-                // Obtener detalles adicionales de la membresía si existe
-                if (nroSocio > 0)
+                // Obtener detalles adicionales de la membresía si existe debo cambiar el tipo de dto que recibe
+                /*if (nroSocio > 0)
                 {
                     try
                     {
-                        DataRow detalles = _dbHelper.ObtenerDetallesCompletosMembresia(nroSocio);
+                        //DataRow detalles = _dbHelper.ObtenerDetallesCompletosMembresia(nroSocio);
+                        DataRow detalles = _dbHelper.ObtenerDetallesMembresia(nroSocio);
                         if (detalles != null)
                         {
                             string descripcion = detalles["Descripcion"] != DBNull.Value ?
@@ -342,7 +343,7 @@ namespace ClubManagement
                     {
                         info += string.Format("Error al obtener detalles: {0}\n", ex.Message);
                     }
-                }
+                }*/
 
                 MessageBox.Show(info, "Información del Socio", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }

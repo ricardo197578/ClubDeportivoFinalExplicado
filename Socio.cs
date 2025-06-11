@@ -40,7 +40,7 @@ namespace ClubManagement
             FechaVencimientoCuota = DateTime.Now.AddMonths(1);
         }
 
-        public override string ObtenerTipoMembresia()
+        public override string ObtenerEstadoMembresia()
         {
             if (Membresia == null)
             {

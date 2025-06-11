@@ -6,7 +6,7 @@ namespace ClubManagement
     {
         public static TipoMembresia CrearMembresia(string nombre)
         {
-            switch (nombre.ToLower()) // Usamos ToLower() para hacerlo case-insensitive
+            switch (nombre.ToLower()) // para hacerlo case-insensitive
             {
                 case "standard":
                     return new MembresiaStandard();

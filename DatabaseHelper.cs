@@ -150,67 +150,17 @@ namespace ClubManagement
 
             }
 
-            SeedTiposMembresia();
-        }
-
-        private void SeedTiposMembresia()
-        {
-            string checkSql = "SELECT COUNT(*) FROM TiposMembresia";
-            using (var command = new SQLiteCommand(checkSql, _connection))
-            {
-                var count = Convert.ToInt32(command.ExecuteScalar());
-                if (count == 0)
-                {
-                    string insertSql = @"
-            INSERT INTO TiposMembresia (Nombre, PrecioMensual, DiasGracia, Descripcion, Beneficios)
-            VALUES 
-                ('Standard', 1500.00, 5, 'Membresía básica con acceso a instalaciones', 'Acceso a gimnasio y piscina'),
-                ('Premium', 2500.00, 10, 'Membresía premium con beneficios exclusivos', 'Acceso a todas las áreas, clases grupales incluidas'),
-                ('Familiar', 3500.00, 15, 'Membresía para grupos familiares', 'Acceso familiar, descuentos en actividades')";
-
-                    using (var insertCommand = new SQLiteCommand(insertSql, _connection))
-                    {
-                        insertCommand.ExecuteNonQuery();
-                    }
-                }
-            }
-        }
-
-        public DataRow ObtenerDetallesCompletosMembresia(int nroSocio)
-        {
-            try
-            {
-                string query = @"
-        SELECT tm.Nombre, tm.Descripcion, tm.Beneficios
-        FROM Socios s
-        JOIN TiposMembresia tm ON s.IdTipoMembresia = tm.Id
-        WHERE s.NroSocio = @nroSocio";
-
-                using (var cmd = new SQLiteCommand(query, GetConnection()))
-                {
-                    cmd.Parameters.AddWithValue("@nroSocio", nroSocio);
-                    DataTable dt = new DataTable();
-                    using (SQLiteDataAdapter da = new SQLiteDataAdapter(cmd))
-                    {
-                        da.Fill(dt);
-                        return dt.Rows.Count > 0 ? dt.Rows[0] : null;
-                    }
-                }
-            }
-            catch
-            {
-                return null;
-            }
+           
         }
         public string ObtenerDetallesMembresia(int nroSocio)
         {
             try
             {
                 string query = @"
-        SELECT tm.Nombre, tm.Beneficios, COALESCE(tm.Descripcion, 'No disponible') AS Descripcion
-        FROM Socios s
-        JOIN TiposMembresia tm ON s.IdTipoMembresia = tm.Id
-        WHERE s.NroSocio = @nroSocio";
+            SELECT tm.Nombre, tm.Beneficios, COALESCE(tm.Descripcion, 'No disponible') AS Descripcion
+            FROM Socios s
+            JOIN TiposMembresia tm ON s.IdTipoMembresia = tm.Id
+            WHERE s.NroSocio = @nroSocio";
 
                 using (var cmd = new SQLiteCommand(query, GetConnection()))
                 {
@@ -220,23 +170,29 @@ namespace ClubManagement
                         if (reader.Read())
                         {
                             return string.Format("{0}\nBeneficios: {1}\nDescripción: {2}",
-                     reader["Nombre"], reader["Beneficios"], reader["Descripcion"]);
-
+                                reader["Nombre"], reader["Beneficios"], reader["Descripcion"]);
                         }
                     }
                 }
             }
-            catch { /* Silenciar errores */ }
+            catch
+            {
+                
+            }
             return null;
         }
 
+
+       
+         
+        
         public SQLiteConnection GetConnection()
         {
             var connection = new SQLiteConnection("Data Source=" + DatabasePath + ";Version=3;");
             connection.Open();
             return connection;
         }
-
+        
         public List<TipoMembresia> ObtenerTiposMembresia()
         {
             var tipos = new List<TipoMembresia>();
@@ -281,7 +237,7 @@ namespace ClubManagement
                 }
                 catch (Exception ex)
                 {
-                    // Manejo de errores
+                    
                 }
             }
         

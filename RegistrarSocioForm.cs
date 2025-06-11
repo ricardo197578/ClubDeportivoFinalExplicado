@@ -156,7 +156,7 @@ namespace ClubManagement
             try
             {
                 cmbTipoMembresia.DisplayMember = "Nombre"; // Mostrará solo el nombre
-                //cmbTipoMembresia.ValueMember = "PrecioMembresia"; // Puedes usar esto si necesitas el valor
+                
 
                 var tipos = _dbHelper.ObtenerTiposMembresia();
                 cmbTipoMembresia.DataSource = tipos;
@@ -333,10 +333,10 @@ namespace ClubManagement
         private DateTime CalcularVencimientoCuota(TipoMembresia membresia)
         {
             DateTime hoy = DateTime.Now;
-            DateTime fechaVencimiento = hoy.AddMonths(1);
+            DateTime fechaVencimiento = hoy.AddMonths(1);//Agregamos un mes al dia de hoy
 
             // Aplicar días de gracia según el tipo de membresía
-            return fechaVencimiento.AddDays(membresia.DiasGraciaVencimiento);
+            return fechaVencimiento.AddDays(membresia.DiasGraciaVencimiento);// al mes agregado, agregamos los dias de gracias de acuerdo al tipo de menbresia
         }
 
 

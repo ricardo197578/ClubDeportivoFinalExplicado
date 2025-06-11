@@ -10,21 +10,14 @@ namespace ClubManagement
         public bool EsTitular { get; set; }
         public List<Actividad> Actividades { get; set; }
 
-        public Profesor()
-        {
-            Actividades = new List<Actividad>();
-        }
+       
 
-        // Implementación específica para Profesor
-        public override string ObtenerTipoMembresia()
+        // Implementación específica para Profesor futura implementacion
+        public override string ObtenerEstadoMembresia()
         {
             return EsTitular ? "Profesor Titular" : "Profesor Suplente";
         }
 
-        // Profesores tienen acceso gratuito
-        public override decimal CalcularDescuento(decimal montoOriginal)
-        {
-            return 0; // Acceso gratuito
-        }
+       
     }
 }
